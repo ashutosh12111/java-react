@@ -1,0 +1,13 @@
+package com.platform.user.api.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+/** Full replacement of the mutable profile fields. Email is immutable (it is the login identity). */
+public record UpdateUserRequest(
+        @NotBlank @Size(max = 100) String firstName,
+        @NotBlank @Size(max = 100) String lastName,
+        @Pattern(regexp = "^\\+[1-9]\\d{6,14}$", message = "must be in E.164 format, e.g. +14155552671")
+        String phoneNumber) {
+}

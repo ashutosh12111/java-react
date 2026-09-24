@@ -1,0 +1,8 @@
+# Automated tests: random port, quiet logs.
+server:
+  port: 0
+
+logging:
+  level:
+    root: WARN
+    com.platform: INFO

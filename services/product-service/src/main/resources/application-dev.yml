@@ -1,0 +1,9 @@
+# Local development: verbose diagnostics, full health details.
+management:
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.platform: DEBUG

@@ -1,0 +1,14 @@
+# Production: structured JSON logs, no interactive API explorer, minimal information disclosure.
+# All environment-specific values (URLs, credentials) are injected at deploy time.
+logging:
+  structured:
+    format:
+      console: ecs
+  level:
+    root: INFO
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

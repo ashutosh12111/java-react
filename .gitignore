@@ -1,0 +1,30 @@
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.log
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+*.swp
+.DS_Store
+
+# Frontend (Phase 4)
+node_modules/
+dist/
+coverage/
+
+# Local configuration and secrets - never commit real values
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
