@@ -29,10 +29,18 @@ class MasterServiceApplicationTest {
 
     @Test
     void unknownRoutesUseThePlatformErrorContract() {
-        ResponseEntity<JsonNode> response = http.getForEntity("/api/v1/orders", JsonNode.class);
+        ResponseEntity<JsonNode> response = http.getForEntity("/api/v1/does-not-exist", JsonNode.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody().get("code").asText()).isEqualTo("NOT_FOUND");
         assertThat(response.getBody().get("correlationId").asText()).isNotBlank();
+    }
+
+    @Test
+    void orderHistoryRequiresACustomer() {
+        ResponseEntity<JsonNode> response = http.getForEntity("/api/v1/orders", JsonNode.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().get("code").asText()).isEqualTo("MISSING_PARAMETER");
     }
 }

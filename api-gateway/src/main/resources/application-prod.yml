@@ -1,0 +1,5 @@
+# Production: JSON logs. ALLOWED_ORIGINS must be set to the real frontend origin(s).
+logging:
+  structured:
+    format:
+      console: ecs

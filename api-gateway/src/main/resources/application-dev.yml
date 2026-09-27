@@ -1,0 +1,11 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        # The gateway actuator endpoint lists the active routes: handy locally, never exposed in prod.
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      access: read-only

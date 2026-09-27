@@ -16,8 +16,12 @@ import java.util.List;
 /**
  * Internal API used by the master-service. Unit prices come from the product-service price quote,
  * never from the browser; the order-service just records them.
+ *
+ * @param reference idempotency reference (the checkout ID). Re-sending the same request returns the
+ *                  existing order instead of creating a duplicate.
  */
 public record CreateOrderRequest(
+        @NotBlank @Size(max = 64) String reference,
         @NotBlank @Size(max = 64) String customerId,
         @NotNull @Pattern(regexp = "^[A-Z]{3}$", message = "must be an ISO-4217 code, e.g. USD") String currency,
         @NotEmpty @Size(max = 50) List<@Valid Line> lines) {

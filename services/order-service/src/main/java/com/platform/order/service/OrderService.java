@@ -1,5 +1,6 @@
 package com.platform.order.service;
 
+import com.platform.common.web.error.ConflictException;
 import com.platform.common.web.error.ResourceNotFoundException;
 import com.platform.order.api.dto.CreateOrderRequest;
 import com.platform.order.domain.Order;
@@ -8,7 +9,9 @@ import com.platform.order.domain.OrderStatus;
 import com.platform.order.repository.OrderRepository;
 import java.time.Clock;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,17 +21,38 @@ public class OrderService {
 
     private final OrderRepository repository;
     private final Clock clock;
+    private final ReentrantLock createLock = new ReentrantLock();
 
     public OrderService(OrderRepository repository, Clock clock) {
         this.repository = repository;
         this.clock = clock;
     }
 
-    public Order create(CreateOrderRequest request) {
+    /**
+     * Creates an order, or returns the existing one if this reference was already used for the same
+     * content. The lock makes check-then-insert atomic for the in-memory store; Phase 3 replaces it with
+     * a unique index on {@code reference}.
+     */
+    public OrderCreation create(CreateOrderRequest request) {
         List<OrderLine> lines = request.lines().stream()
                 .map(l -> new OrderLine(l.productId(), l.productName(), l.quantity(), l.unitPrice()))
                 .toList();
-        return repository.save(new Order(UUID.randomUUID(), request.customerId(), request.currency(), lines, clock.instant()));
+        createLock.lock();
+        try {
+            Optional<Order> existing = repository.findByReference(request.reference());
+            if (existing.isPresent()) {
+                if (!existing.get().hasSameContent(request.customerId(), request.currency(), lines)) {
+                    throw new ConflictException("ORDER_REFERENCE_CONFLICT",
+                            "Reference '" + request.reference() + "' is already used by a different order");
+                }
+                return new OrderCreation(existing.get(), false);
+            }
+            Order order = new Order(UUID.randomUUID(), request.reference(), request.customerId(), request.currency(),
+                    lines, clock.instant());
+            return new OrderCreation(repository.save(order), true);
+        } finally {
+            createLock.unlock();
+        }
     }
 
     public Order get(UUID id) {

@@ -55,7 +55,7 @@ class OrderControllerTest {
     @Test
     void rejectsNegativePrices() throws Exception {
         mvc.perform(post("/api/v1/orders").contentType(MediaType.APPLICATION_JSON).content("""
-                        {"customerId":"c1","currency":"USD",
+                        {"reference":"checkout-1","customerId":"c1","currency":"USD",
                          "lines":[{"productId":"P100","productName":"K","quantity":1,"unitPrice":-5}]}"""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors[0].field").value("lines[0].unitPrice"));

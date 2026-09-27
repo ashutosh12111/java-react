@@ -15,7 +15,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class OrderTest {
 
     private static Order newOrder() {
-        return new Order(UUID.randomUUID(), "customer-1", "USD", List.of(
+        return new Order(UUID.randomUUID(), "checkout-1", "customer-1", "USD", List.of(
                 new OrderLine("P100", "Keyboard", 2, new BigDecimal("49.90")),
                 new OrderLine("P200", "Mouse", 1, new BigDecimal("19.95"))), Instant.EPOCH);
     }

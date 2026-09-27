@@ -33,28 +33,31 @@ flowchart TB
 
 Everything to the right of the gateway is on a private network. Only the ingress is public.
 
-## Phase 1: what exists today
+## Current state (after Phase 2)
 
 ```mermaid
 flowchart LR
-    client[curl / Swagger UI] --> user[user-service :8082]
-    client --> product[product-service :8083]
-    client --> inventory[inventory-service :8084]
-    client --> order[order-service :8085]
-    client --> payment[payment-service :8086]
-    client --> notification[notification-service :8087]
-    client --> master[master-service :8081<br/>skeleton]
-    common[[libs/common-web]] -.shared by.- user & product & inventory & order & payment & notification & master
+    client[Browser / curl] -->|:8080| gw[api-gateway]
+    gw -->|orders| master[master-service :8081]
+    gw -->|GET products| product[product-service :8083]
+    gw -->|sign-up, profile| user[user-service :8082]
+    master --> user & product
+    master --> inventory[inventory-service :8084]
+    master --> order[order-service :8085]
+    master --> payment[payment-service :8086]
+    master --> notification[notification-service :8087]
 ```
 
-Seven independently runnable Spring Boot services, each with its own in-memory store. Nothing calls
-anything else yet. Phase 2 adds the gateway and orchestration, and Phase 3 replaces the in-memory stores with
-one PostgreSQL database per service.
+The gateway is the only public entry point and exposes an allow-list of routes. Single-service reads go directly
+to the owning service, and multi-service workflows (checkout, aggregated order views) go through the master-service.
+Data is still in memory; Phase 3 introduces one PostgreSQL database per service. See
+[Phase 2](../phases/phase-02-orchestration.md) for the checkout sequence and failure handling.
 
 ## Service responsibilities
 
 | Service | Owns | Does NOT own |
 |---|---|---|
+| **api-gateway** | Public entry point, route allow-list, correlation IDs, CORS, upstream timeouts (rate limiting in Phase 6, token validation in Phase 9) | Any business logic or orchestration |
 | **master-service** | Workflow coordination, response aggregation, partial-failure handling, idempotency at the edge, correlation/trace propagation | Any database. Any domain rule (pricing, stock, order state, …) |
 | **user-service** | User accounts, profiles, "may this customer order?" | Orders, addresses for shipping (future) |
 | **product-service** | Catalog, active/inactive availability, authoritative pricing & price quotes | Stock levels |

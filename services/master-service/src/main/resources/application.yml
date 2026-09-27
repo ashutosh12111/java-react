@@ -49,9 +49,31 @@ springdoc:
     path: /swagger-ui.html
   default-produces-media-type: application/json
 
+# Downstream services. URLs are injected per environment; timeouts are sized per service.
+# Connect timeouts are short (an unreachable host should fail fast); read timeouts follow expected latency.
 platform:
   openapi:
     description: "Orchestrates multi-service workflows, aggregates responses and handles partial failures. Owns no business data."
+  downstream:
+    user:
+      base-url: ${USER_SERVICE_URL:http://localhost:8082}
+      read-timeout: 2s
+    product:
+      base-url: ${PRODUCT_SERVICE_URL:http://localhost:8083}
+      read-timeout: 2s
+    inventory:
+      base-url: ${INVENTORY_SERVICE_URL:http://localhost:8084}
+      read-timeout: 3s
+    order:
+      base-url: ${ORDER_SERVICE_URL:http://localhost:8085}
+      read-timeout: 3s
+    payment:
+      base-url: ${PAYMENT_SERVICE_URL:http://localhost:8086}
+      # Payment providers are slow; timing out early only creates more "outcome unknown" cases.
+      read-timeout: 10s
+    notification:
+      base-url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
+      read-timeout: 2s
 
 logging:
   pattern:

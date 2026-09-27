@@ -6,6 +6,7 @@ import com.platform.order.api.dto.CreateOrderRequest;
 import com.platform.order.api.dto.OrderResponse;
 import com.platform.order.domain.Order;
 import com.platform.order.domain.OrderStatus;
+import com.platform.order.service.OrderCreation;
 import com.platform.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,9 +39,15 @@ public class OrderController {
     }
 
     @PostMapping
-    @Operation(summary = "Create an order in PENDING state")
+    @Operation(summary = "Create an order in PENDING state",
+            description = "Idempotent per `reference`: 201 when created, 200 when the same request is repeated, "
+                    + "409 ORDER_REFERENCE_CONFLICT if the reference was used for a different order.")
     public ResponseEntity<OrderResponse> create(@Valid @RequestBody CreateOrderRequest request) {
-        Order order = orderService.create(request);
+        OrderCreation creation = orderService.create(request);
+        Order order = creation.order();
+        if (!creation.created()) {
+            return ResponseEntity.ok(OrderResponse.from(order));
+        }
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(order.getId()).toUri();
         return ResponseEntity.created(location).body(OrderResponse.from(order));
     }

@@ -1,0 +1,74 @@
+# API Gateway: the ONLY component exposed publicly. Every other service is on a private network.
+spring:
+  application:
+    name: api-gateway
+  profiles:
+    default: dev
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Global upstream timeouts. Individual routes override them via metadata.
+          httpclient:
+            connect-timeout: 1000
+            response-timeout: 5s
+          globalcors:
+            # Also answer CORS preflight (OPTIONS) for paths whose route only allows e.g. GET/POST.
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              "[/api/**]":
+                allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+                allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+                allowed-headers: Content-Type,Authorization,Idempotency-Key,X-Correlation-Id
+                exposed-headers: X-Correlation-Id,Location,Idempotent-Replayed
+                max-age: 3600
+          # ALLOW-LIST of public routes. Anything not listed returns 404, so internal endpoints
+          # (inventory, payments, notifications, order state commands) are unreachable from outside.
+          routes:
+            # Checkout and order views: multi-service workflows and aggregation → master-service.
+            - id: orders
+              uri: ${MASTER_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/orders,/api/v1/orders/{id}
+                - Method=GET,POST
+              metadata:
+                # Checkout may wait for the payment provider (master allows 10s), so allow more here.
+                response-timeout: 15000
+            # Catalog browsing is a simple single-service read: no orchestration needed.
+            - id: products-read
+              uri: ${PRODUCT_SERVICE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/products,/api/v1/products/{id}
+                - Method=GET
+            # Sign-up and profile reads. Phase 9 restricts profile reads to the authenticated owner.
+            - id: users-register
+              uri: ${USER_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/users
+                - Method=POST
+            - id: users-read
+              uri: ${USER_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/users/{id}
+                - Method=GET
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+info:
+  service:
+    name: ${spring.application.name}

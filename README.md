@@ -15,9 +15,9 @@ flowchart LR
 
 | Phase | Topic | Status |
 |---|---|---|
-| 1 | Basic Spring Boot microservices | ✅ **done** |
-| 2 | Master/orchestrator communication + API gateway | ⏳ next |
-| 3 | PostgreSQL (database-per-service) + Flyway | |
+| 1 | Basic Spring Boot microservices | ✅ done |
+| 2 | Master/orchestrator communication + API gateway | ✅ **done** |
+| 3 | PostgreSQL (database-per-service) + Flyway | ⏳ next |
 | 4 | Frontend (React + TypeScript) | |
 | 5 | Docker Compose | |
 | 6 | Redis | |
@@ -30,8 +30,8 @@ flowchart LR
 | 13 | Kubernetes / Helm | |
 | 14 | Production hardening | |
 
-Each phase is documented in [`docs/phases/`](docs/phases). Start with
-[Phase 1](docs/phases/phase-01-foundations.md).
+Each phase is documented in [`docs/phases/`](docs/phases): [Phase 1](docs/phases/phase-01-foundations.md) and
+[Phase 2](docs/phases/phase-02-orchestration.md).
 
 ## Documentation
 
@@ -56,12 +56,31 @@ cp .env.example .env          # optional in Phase 1: no secrets needed yet
 ./mvnw clean install          # builds everything and runs all tests
 ```
 
-## Running services
+## Running everything locally
+
+```bash
+scripts/run-local.sh          # builds if needed, starts gateway + 7 services, waits until all are ready
+scripts/smoke-test.sh         # end-to-end checks through the gateway (checkout, replay, decline, blocked routes)
+scripts/run-local.sh stop
+```
+
+Logs go to `logs/<service>.log`. **The only public entry point is the gateway on http://localhost:8080.** The other
+ports are open locally for debugging only and are never exposed in Docker or Kubernetes.
+
+Place an order through the gateway:
+
+```bash
+curl -s localhost:8080/api/v1/orders -H 'Content-Type: application/json' -H 'Idempotency-Key: my-checkout-0001' \
+  -d '{"customerId":"<user id>","items":[{"productId":"P100","quantity":2}],"paymentMethodToken":"tok_visa"}'
+```
+
+## Running individual services
 
 Each service is a standalone Spring Boot app with its own port:
 
 | Service | Port | Command |
 |---|---|---|
+| **api-gateway** | **8080** | `./mvnw -pl api-gateway spring-boot:run` |
 | master-service | 8081 | `./mvnw -pl services/master-service spring-boot:run` |
 | user-service | 8082 | `./mvnw -pl services/user-service spring-boot:run` |
 | product-service | 8083 | `./mvnw -pl services/product-service spring-boot:run` |
@@ -112,11 +131,11 @@ The `prod` profile writes structured JSON (ECS) instead, with `correlationId` as
 SPRING_PROFILES_ACTIVE=prod java -jar services/payment-service/target/payment-service-0.1.0-SNAPSHOT.jar
 ```
 
-To follow one request, send your own ID and search the logs for it:
+The gateway assigns the ID and every service forwards it, so one grep follows a request across the platform:
 
 ```bash
-curl -H 'X-Correlation-Id: my-debug-0001' localhost:8082/api/v1/users/...
-grep my-debug-0001 <service log>
+curl -H 'X-Correlation-Id: my-debug-0001' localhost:8080/api/v1/orders/<id>
+grep my-debug-0001 logs/*.log
 ```
 
 ## Debugging a service
@@ -136,9 +155,11 @@ added to this README in the phases that introduce them.
 ## Repository layout
 
 ```
+api-gateway/            public entry point (Spring Cloud Gateway)
 libs/common-web/        shared cross-cutting web plumbing (no domain code)
 services/<name>/        one deployable Spring Boot service each
+scripts/                run-local.sh, smoke-test.sh
 docs/                   architecture, API guidelines, per-phase guides
 ```
 
-Later phases add `frontend/`, `api-gateway/`, `infrastructure/`, `deployment/` and `.github/workflows/`.
+Later phases add `frontend/`, `infrastructure/`, `deployment/` and `.github/workflows/`.

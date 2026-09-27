@@ -71,15 +71,18 @@ Response envelope:
 * **payment-service** requires an `Idempotency-Key` header (8–64 chars `[A-Za-z0-9_-]`). The same key with the same
   body returns the stored result (`200`, `Idempotent-Replayed: true`) without calling the provider again. The same key
   with a different body returns `422 IDEMPOTENCY_KEY_REUSED`, and a concurrent duplicate returns `409 PAYMENT_IN_PROGRESS`.
-* **inventory-service** reservations are idempotent per business `reference` (the order ID).
-* **master-service** will accept `Idempotency-Key` on `POST /api/v1/orders` from Phase 2 onward.
+* **inventory-service** reservations and **order-service** order creation are idempotent per business `reference`.
+* **master-service** requires `Idempotency-Key` on `POST /api/v1/orders`. It derives a per-customer `checkoutId` and
+  uses it as the reservation reference, order reference and payment idempotency key, so a retried checkout resumes
+  instead of duplicating work. See [Phase 2](../phases/phase-02-orchestration.md#idempotency-why-retries-are-safe).
 
 ## Correlation IDs
 
 * Clients may send `X-Correlation-Id` (8–64 chars `[A-Za-z0-9._-]`). Otherwise a UUID is generated.
   Invalid values are replaced, not rejected, which also prevents log injection.
 * The ID is echoed on every response, included in every error body, and written to every log line (MDC key `correlationId`).
-* From Phase 2 it's forwarded on every downstream call. From Phase 10 it sits alongside W3C `traceparent`.
+* The API gateway assigns it for every public request. `common-web` forwards it on every outgoing `RestClient` call,
+  including parallel aggregation calls (`MdcTaskDecorator`). From Phase 10 it sits alongside W3C `traceparent`.
 
 ## DTOs
 

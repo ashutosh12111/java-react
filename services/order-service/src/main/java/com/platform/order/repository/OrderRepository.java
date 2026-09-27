@@ -14,5 +14,7 @@ public interface OrderRepository {
 
     Optional<Order> findById(UUID id);
 
+    Optional<Order> findByReference(String reference);
+
     Page<Order> search(String customerId, OrderStatus status, Pageable pageable);
 }

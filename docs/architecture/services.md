@@ -5,6 +5,7 @@ All paths are versioned under `/api/v1`. Each running service serves its full, i
 
 | Service | Port | Swagger |
 |---|---|---|
+| **api-gateway** (public) | 8080 | none: routes to the services below |
 | master-service | 8081 | http://localhost:8081/swagger-ui.html |
 | user-service | 8082 | http://localhost:8082/swagger-ui.html |
 | product-service | 8083 | http://localhost:8083/swagger-ui.html |
@@ -25,7 +26,7 @@ Every service also exposes `/actuator/health/liveness`, `/actuator/health/readin
 | PUT | `/users/{id}` | Replace profile (email is immutable) |
 | PATCH | `/users/{id}/status` | `ACTIVE` / `SUSPENDED` |
 | DELETE | `/users/{id}` | Delete |
-| GET | `/users/{id}/validation` | `{userId, status, eligibleForOrders}` for orchestration |
+| GET | `/users/{id}/validation` | `{userId, status, eligibleForOrders, email}` for orchestration |
 
 ## product-service
 
@@ -56,7 +57,7 @@ Reservation states: `RESERVED → RELEASED` or `RESERVED → COMMITTED`. Both ta
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/orders` | Create `PENDING` order (internal: prices come from the product-service quote) |
+| POST | `/orders` | Create `PENDING` order (internal: prices come from the product-service quote). Idempotent per `reference`: 201 new, 200 replay, 409 `ORDER_REFERENCE_CONFLICT` |
 | GET | `/orders/{id}` | Get, including status history |
 | GET | `/orders?customerId=&status=` | Order history. Sort: `createdAt`, `totalAmount`, `status` |
 | POST | `/orders/{id}/confirm` | `PENDING → CONFIRMED` |
@@ -86,7 +87,29 @@ Only provider tokens (`tok_...`) are accepted, never card numbers. Test tokens: 
 Templates: `WELCOME`, `ORDER_CONFIRMED`, `ORDER_CANCELLED`, `PAYMENT_FAILED`. Recipients ending in `.invalid`
 simulate a provider rejection.
 
-## master-service
+## api-gateway: public routes
 
-Phase 1 ships a skeleton only (health, OpenAPI, error contract, correlation). Phase 2 adds `POST /api/v1/orders`
-orchestration.
+Only these reach the platform from outside. Everything else returns 404 `NOT_FOUND`.
+
+| Method | Path | Routed to |
+|---|---|---|
+| POST, GET | `/api/v1/orders`, `/api/v1/orders/{id}` | master-service |
+| GET | `/api/v1/products`, `/api/v1/products/{id}` | product-service |
+| POST | `/api/v1/users` | user-service |
+| GET | `/api/v1/users/{id}` | user-service |
+
+Gateway-level errors use the platform error format: `404 NOT_FOUND`, `503 SERVICE_UNAVAILABLE` (upstream down),
+`504 GATEWAY_TIMEOUT` (upstream too slow). Dev profile only: `GET /actuator/gateway/routes` lists the active routes.
+
+## master-service (public, via the gateway)
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/orders` | Checkout. Requires `Idempotency-Key`. Body: `customerId`, `items[{productId, quantity}]`, `paymentMethodToken` (no prices) |
+| GET | `/orders/{id}` | Order and payment status, aggregated in parallel. `warnings` lists any part that couldn't be loaded |
+| GET | `/orders?customerId=&status=&page=&size=&sort=` | Order history (`customerId` required). Sort: `createdAt`, `totalAmount`, `status` |
+
+Checkout outcomes: `201` placed, `200` replay (`Idempotent-Replayed: true`), `402 PAYMENT_DECLINED`,
+`409 CHECKOUT_IN_PROGRESS` / `CHECKOUT_ALREADY_CANCELLED`, `422 CUSTOMER_NOT_FOUND` / `CUSTOMER_NOT_ELIGIBLE` /
+`PRODUCT_UNAVAILABLE` / `INSUFFICIENT_STOCK` / `IDEMPOTENCY_KEY_REUSED`, `503 DOWNSTREAM_UNAVAILABLE` /
+`PAYMENT_OUTCOME_UNKNOWN` (retry with the same key). Details are in [Phase 2](../phases/phase-02-orchestration.md).

@@ -34,6 +34,7 @@ class UserApiTest {
 
         JsonNode validation = http.getForObject("/api/v1/users/{id}/validation", JsonNode.class, id);
         assertThat(validation.get("eligibleForOrders").asBoolean()).isTrue();
+        assertThat(validation.get("email").asText()).isEqualTo("grace@example.com");
 
         JsonNode page = http.getForObject("/api/v1/users?status=ACTIVE&size=10&sort=email,asc", JsonNode.class);
         assertThat(page.get("totalElements").asLong()).isEqualTo(1);

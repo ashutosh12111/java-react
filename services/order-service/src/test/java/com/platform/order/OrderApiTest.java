@@ -22,7 +22,7 @@ class OrderApiTest {
 
     @Test
     void orderLifecycle() {
-        Map<String, Object> request = Map.of("customerId", "customer-7", "currency", "USD", "lines",
+        Map<String, Object> request = Map.of("reference", "checkout-7", "customerId", "customer-7", "currency", "USD", "lines",
                 List.of(Map.of("productId", "P100", "productName", "Keyboard", "quantity", 2, "unitPrice", "49.90")));
 
         ResponseEntity<JsonNode> created = http.postForEntity("/api/v1/orders", request, JsonNode.class);
@@ -30,6 +30,15 @@ class OrderApiTest {
         assertThat(created.getBody().get("status").asText()).isEqualTo("PENDING");
         assertThat(created.getBody().get("totalAmount").decimalValue()).isEqualByComparingTo("99.80");
         String id = created.getBody().get("id").asText();
+
+        ResponseEntity<JsonNode> replay = http.postForEntity("/api/v1/orders", request, JsonNode.class);
+        assertThat(replay.getStatusCode()).as("same reference is an idempotent replay").isEqualTo(HttpStatus.OK);
+        assertThat(replay.getBody().get("id").asText()).isEqualTo(id);
+
+        Map<String, Object> different = Map.of("reference", "checkout-7", "customerId", "someone-else", "currency", "USD",
+                "lines", List.of(Map.of("productId", "P100", "productName", "Keyboard", "quantity", 1, "unitPrice", "49.90")));
+        assertThat(http.postForEntity("/api/v1/orders", different, JsonNode.class).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
 
         assertThat(http.postForObject("/api/v1/orders/{id}/confirm", null, JsonNode.class, id)
                 .get("status").asText()).isEqualTo("CONFIRMED");

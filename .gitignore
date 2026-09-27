@@ -28,3 +28,4 @@ coverage/
 *.key
 *.p12
 *.jks
+logs/

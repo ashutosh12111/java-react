@@ -64,6 +64,7 @@ public class UserService {
 
     public UserValidationResponse validateForOrdering(UUID id) {
         User user = get(id);
-        return new UserValidationResponse(user.getId(), user.getStatus(), user.getStatus().canPlaceOrders());
+        return new UserValidationResponse(
+                user.getId(), user.getStatus(), user.getStatus().canPlaceOrders(), user.getEmail());
     }
 }

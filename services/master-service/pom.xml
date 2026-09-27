@@ -13,4 +13,13 @@
     <artifactId>master-service</artifactId>
     <name>Master Service</name>
     <description>Orchestrates multi-service workflows, aggregates responses and handles partial failures. Owns no business data.</description>
+
+    <dependencies>
+        <!-- Stands in for the downstream services in HTTP-level tests (timeouts, faults, error bodies). -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 </project>

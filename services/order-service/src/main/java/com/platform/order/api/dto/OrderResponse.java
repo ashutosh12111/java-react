@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public record OrderResponse(
         UUID id,
+        String reference,
         String customerId,
         OrderStatus status,
         String currency,
@@ -26,7 +27,7 @@ public record OrderResponse(
         List<Line> lines = o.getLines().stream()
                 .map(l -> new Line(l.productId(), l.productName(), l.quantity(), l.unitPrice(), l.lineTotal()))
                 .toList();
-        return new OrderResponse(o.getId(), o.getCustomerId(), o.getStatus(), o.getCurrency(), o.getTotalAmount(),
+        return new OrderResponse(o.getId(), o.getReference(), o.getCustomerId(), o.getStatus(), o.getCurrency(), o.getTotalAmount(),
                 lines, o.getHistory(), o.getCreatedAt(), o.getUpdatedAt());
     }
 }

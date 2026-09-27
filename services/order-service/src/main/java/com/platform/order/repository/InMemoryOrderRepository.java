@@ -34,6 +34,11 @@ class InMemoryOrderRepository implements OrderRepository {
     }
 
     @Override
+    public Optional<Order> findByReference(String reference) {
+        return orders.values().stream().filter(o -> o.getReference().equals(reference)).findFirst();
+    }
+
+    @Override
     public Page<Order> search(String customerId, OrderStatus status, Pageable pageable) {
         return InMemoryPageSupport.page(
                 orders.values().stream()
